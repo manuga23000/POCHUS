@@ -73,11 +73,20 @@ export default function ProductsTab() {
   return (
     <div className="pb-20">
       {/* Header */}
-      <div className="bg-gradient-to-r from-sky-500 to-sky-600 text-white p-6 rounded-b-3xl shadow-lg mb-6">
-        <h1 className="text-2xl font-bold mb-2">Gestión de Productos</h1>
-        <p className="text-sky-100 text-sm">
-          Total: {products.length} productos
-        </p>
+      <div className="bg-slate-800 border-b border-slate-700 p-4 mb-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="bg-sky-500 p-2.5 rounded-xl">
+              <Package size={24} className="text-white" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-gray-100">Productos</h1>
+              <p className="text-xs text-gray-400">
+                {products.length} {products.length === 1 ? 'producto' : 'productos'} en inventario
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div className="px-4 space-y-4">
@@ -202,6 +211,8 @@ function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
     sizes: product?.sizes || [{ size: '', stock: 0 }],
   });
   const [saving, setSaving] = useState(false);
+  const [stockMode, setStockMode] = useState<'total' | 'detallado'>('detallado');
+  const [totalStock, setTotalStock] = useState(0);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -249,6 +260,20 @@ function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
     setFormData({ ...formData, sizes: newSizes });
   };
 
+  const handleTotalStockChange = (value: number) => {
+    setTotalStock(value);
+    // Distribuir equitativamente entre todos los talles
+    const stockPerSize = Math.floor(value / formData.sizes.length);
+    const remainder = value % formData.sizes.length;
+
+    const newSizes = formData.sizes.map((size, idx) => ({
+      ...size,
+      stock: stockPerSize + (idx < remainder ? 1 : 0)
+    }));
+
+    setFormData({ ...formData, sizes: newSizes });
+  };
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <Input
@@ -281,6 +306,49 @@ function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
         <label className="block text-sm font-medium text-gray-300 mb-2">
           Talles y Stock
         </label>
+
+        {/* Toggle Stock Mode */}
+        <div className="flex gap-2 mb-3 bg-slate-800 p-1 rounded-lg">
+          <button
+            type="button"
+            onClick={() => setStockMode('total')}
+            className={`flex-1 px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+              stockMode === 'total'
+                ? 'bg-sky-500 text-white'
+                : 'text-gray-400 hover:text-gray-200'
+            }`}
+          >
+            Stock Total
+          </button>
+          <button
+            type="button"
+            onClick={() => setStockMode('detallado')}
+            className={`flex-1 px-3 py-1.5 rounded text-sm font-medium transition-colors ${
+              stockMode === 'detallado'
+                ? 'bg-sky-500 text-white'
+                : 'text-gray-400 hover:text-gray-200'
+            }`}
+          >
+            Por Talle
+          </button>
+        </div>
+
+        {/* Stock Total Mode */}
+        {stockMode === 'total' && (
+          <div className="mb-3">
+            <input
+              type="number"
+              placeholder="Stock total"
+              value={totalStock}
+              onChange={(e) => handleTotalStockChange(Number(e.target.value))}
+              onFocus={(e) => e.target.select()}
+              className="w-full px-3 py-2 rounded-lg border border-slate-600 bg-slate-900 text-gray-100 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-sky-500"
+              min="0"
+            />
+          </div>
+        )}
+
+        {/* Talles */}
         <div className="space-y-2">
           {formData.sizes.map((size, idx) => (
             <div key={idx} className="flex gap-2">
@@ -292,16 +360,23 @@ function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
                 className="flex-1 px-3 py-2 rounded-lg border border-slate-600 bg-slate-900 text-gray-100 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-sky-500"
                 required
               />
-              <input
-                type="number"
-                placeholder="Stock"
-                value={size.stock}
-                onChange={(e) => updateSize(idx, 'stock', Number(e.target.value))}
-                onFocus={(e) => e.target.select()}
-                className="w-24 px-3 py-2 rounded-lg border border-slate-600 bg-slate-900 text-gray-100 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-sky-500"
-                min="0"
-                required
-              />
+              {stockMode === 'detallado' && (
+                <input
+                  type="number"
+                  placeholder="Stock"
+                  value={size.stock}
+                  onChange={(e) => updateSize(idx, 'stock', Number(e.target.value))}
+                  onFocus={(e) => e.target.select()}
+                  className="w-24 px-3 py-2 rounded-lg border border-slate-600 bg-slate-900 text-gray-100 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                  min="0"
+                  required
+                />
+              )}
+              {stockMode === 'total' && (
+                <div className="w-24 px-3 py-2 rounded-lg border border-slate-600 bg-slate-800 text-gray-400 flex items-center justify-center text-sm">
+                  {size.stock}
+                </div>
+              )}
               {formData.sizes.length > 1 && (
                 <button
                   type="button"

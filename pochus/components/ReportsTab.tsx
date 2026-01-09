@@ -29,8 +29,24 @@ export default function ReportsTab() {
 
     const filtered = sales.filter(sale => {
       const saleDate = new Date(sale.createdAt);
-      const start = dateRange.start ? new Date(dateRange.start) : null;
-      const end = dateRange.end ? new Date(dateRange.end) : null;
+
+      // Convertir DD/MM/AAAA a Date
+      let start = null;
+      if (dateRange.start) {
+        const [day, month, year] = dateRange.start.split('/');
+        if (day && month && year) {
+          start = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+        }
+      }
+
+      let end = null;
+      if (dateRange.end) {
+        const [day, month, year] = dateRange.end.split('/');
+        if (day && month && year) {
+          end = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+          end.setHours(23, 59, 59, 999); // Incluir todo el día
+        }
+      }
 
       if (start && saleDate < start) return false;
       if (end && saleDate > end) return false;
@@ -79,37 +95,46 @@ export default function ReportsTab() {
   return (
     <div className="pb-20">
       {/* Header */}
-      <div className="bg-gradient-to-r from-sky-500 to-sky-600 text-white p-6 rounded-b-3xl shadow-lg mb-6">
-        <h1 className="text-2xl font-bold mb-2">Reportes</h1>
-        <p className="text-sky-100 text-sm">
-          Análisis de ventas y ganancias
-        </p>
+      <div className="bg-slate-800 border-b border-slate-700 p-4 mb-6">
+        <div className="flex items-center gap-3">
+          <div className="bg-sky-500 p-2.5 rounded-xl">
+            <FileText size={24} className="text-white" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold text-gray-100">Reportes</h1>
+            <p className="text-xs text-gray-400">
+              Análisis de ventas y ganancias
+            </p>
+          </div>
+        </div>
       </div>
 
       <div className="px-4 space-y-6">
         {/* Date Filter */}
         <Card padding="md">
-          <h3 className="font-semibold text-gray-100 mb-3 flex items-center gap-2">
-            <Calendar size={18} />
+          <h3 className="font-semibold text-gray-100 mb-1.5 flex items-center gap-2 text-sm">
+            <Calendar size={16} />
             Filtrar por fecha
           </h3>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1">
             <div>
-              <label className="block text-xs text-gray-400 mb-1">Desde</label>
+              <label className="block text-xs text-gray-400 mb-0.5">Desde</label>
               <input
-                type="date"
+                type="text"
+                placeholder="DD/MM/AAAA"
                 value={dateRange.start}
                 onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })}
-                className="w-full px-3 py-2 rounded-lg border border-slate-600 bg-slate-900 text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
+                className="w-full px-2 py-1 rounded border border-slate-600 bg-slate-900 text-gray-100 text-xs placeholder:text-gray-600 focus:outline-none focus:ring-1 focus:ring-sky-500"
               />
             </div>
             <div>
-              <label className="block text-xs text-gray-400 mb-1">Hasta</label>
+              <label className="block text-xs text-gray-400 mb-0.5">Hasta</label>
               <input
-                type="date"
+                type="text"
+                placeholder="DD/MM/AAAA"
                 value={dateRange.end}
                 onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
-                className="w-full px-3 py-2 rounded-lg border border-slate-600 bg-slate-900 text-gray-100 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
+                className="w-full px-2 py-1 rounded border border-slate-600 bg-slate-900 text-gray-100 text-xs placeholder:text-gray-600 focus:outline-none focus:ring-1 focus:ring-sky-500"
               />
             </div>
           </div>

@@ -120,21 +120,26 @@ export default function SalesTab() {
   return (
     <div className="pb-20">
       {/* Header */}
-      <div className="bg-gradient-to-r from-sky-500 to-sky-600 text-white p-6 rounded-b-3xl shadow-lg mb-6">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold mb-2">Registrar Venta</h1>
-            <p className="text-sky-100 text-sm">
-              {products.length} productos disponibles
-            </p>
+      <div className="bg-slate-800 border-b border-slate-700 p-4 mb-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="bg-sky-500 p-2.5 rounded-xl">
+              <ShoppingCart size={24} className="text-white" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-gray-100">Ventas</h1>
+              <p className="text-xs text-gray-400">
+                {products.length} {products.length === 1 ? 'producto disponible' : 'productos disponibles'}
+              </p>
+            </div>
           </div>
           <button
             onClick={() => setIsCartOpen(true)}
-            className="relative bg-white/20 p-3 rounded-full hover:bg-white/30 transition-colors"
+            className="relative bg-sky-500 hover:bg-sky-600 p-2.5 rounded-xl transition-colors"
           >
-            <ShoppingCart size={24} />
+            <ShoppingCart size={20} className="text-white" />
             {cart.length > 0 && (
-              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold">
+              <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold">
                 {cart.length}
               </span>
             )}
