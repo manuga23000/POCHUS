@@ -1,20 +1,20 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { Search, ShoppingCart, Plus, Minus, Trash2, X } from 'lucide-react';
-import Button from './ui/Button';
-import Card from './ui/Card';
-import Modal from './ui/Modal';
-import { Product, SaleItem } from '@/lib/types';
-import { getAllProducts, addSale, getActiveFair } from '@/lib/db';
+import { useState, useEffect } from "react";
+import { Search, ShoppingCart, Plus, Minus, Trash2, X } from "lucide-react";
+import Button from "./ui/Button";
+import Card from "./ui/Card";
+import Modal from "./ui/Modal";
+import { Product, SaleItem } from "@/lib/types";
+import { getAllProducts, addSale, getActiveFair } from "@/lib/db";
 
 export default function SalesTab() {
   const [products, setProducts] = useState<Product[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
   const [cart, setCart] = useState<SaleItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const [notes, setNotes] = useState('');
+  const [notes, setNotes] = useState("");
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
 
@@ -23,7 +23,7 @@ export default function SalesTab() {
   }, []);
 
   useEffect(() => {
-    const filtered = products.filter(product =>
+    const filtered = products.filter((product) =>
       product.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
     setFilteredProducts(filtered);
@@ -34,11 +34,11 @@ export default function SalesTab() {
       setLoading(true);
       const data = await getAllProducts();
       // Solo mostrar productos con stock
-      const inStock = data.filter(p => p.totalStock > 0);
+      const inStock = data.filter((p) => p.totalStock > 0);
       setProducts(inStock);
       setFilteredProducts(inStock);
     } catch (error) {
-      console.error('Error cargando productos:', error);
+      console.error("Error cargando productos:", error);
     } finally {
       setLoading(false);
     }
@@ -46,11 +46,15 @@ export default function SalesTab() {
 
   const addToCart = (product: Product, size: string, quantity: number = 1) => {
     const existingItem = cart.find(
-      item => item.productId === product.id && item.size === size
+      (item) => item.productId === product.id && item.size === size
     );
 
     if (existingItem) {
-      updateCartQuantity(existingItem.productId, existingItem.size, existingItem.quantity + quantity);
+      updateCartQuantity(
+        existingItem.productId,
+        existingItem.size,
+        existingItem.quantity + quantity
+      );
     } else {
       const newItem: SaleItem = {
         productId: product.id,
@@ -64,21 +68,35 @@ export default function SalesTab() {
     }
   };
 
-  const updateCartQuantity = (productId: string, size: string, newQuantity: number) => {
+  const updateCartQuantity = (
+    productId: string,
+    size: string,
+    newQuantity: number
+  ) => {
     if (newQuantity <= 0) {
       removeFromCart(productId, size);
       return;
     }
 
-    setCart(cart.map(item =>
-      item.productId === productId && item.size === size
-        ? { ...item, quantity: newQuantity, totalPrice: item.unitPrice * newQuantity }
-        : item
-    ));
+    setCart(
+      cart.map((item) =>
+        item.productId === productId && item.size === size
+          ? {
+              ...item,
+              quantity: newQuantity,
+              totalPrice: item.unitPrice * newQuantity,
+            }
+          : item
+      )
+    );
   };
 
   const removeFromCart = (productId: string, size: string) => {
-    setCart(cart.filter(item => !(item.productId === productId && item.size === size)));
+    setCart(
+      cart.filter(
+        (item) => !(item.productId === productId && item.size === size)
+      )
+    );
   };
 
   const getTotalAmount = () => {
@@ -87,7 +105,7 @@ export default function SalesTab() {
 
   const handleCheckout = async () => {
     if (cart.length === 0) {
-      alert('El carrito está vacío');
+      alert("El carrito está vacío");
       return;
     }
 
@@ -104,14 +122,14 @@ export default function SalesTab() {
         notes,
       });
 
-      alert('¡Venta registrada exitosamente!');
+      alert("¡Venta registrada exitosamente!");
       setCart([]);
-      setNotes('');
+      setNotes("");
       setIsCartOpen(false);
       await loadProducts(); // Recargar para actualizar stock
     } catch (error) {
-      console.error('Error registrando venta:', error);
-      alert('Error al registrar la venta');
+      console.error("Error registrando venta:", error);
+      alert("Error al registrar la venta");
     } finally {
       setProcessing(false);
     }
@@ -129,7 +147,10 @@ export default function SalesTab() {
             <div>
               <h1 className="text-xl font-bold text-gray-100">Ventas</h1>
               <p className="text-xs text-gray-400">
-                {products.length} {products.length === 1 ? 'producto disponible' : 'productos disponibles'}
+                {products.length}{" "}
+                {products.length === 1
+                  ? "producto disponible"
+                  : "productos disponibles"}
               </p>
             </div>
           </div>
@@ -150,7 +171,10 @@ export default function SalesTab() {
       <div className="px-4 space-y-4">
         {/* Search */}
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500" size={20} />
+          <Search
+            className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500"
+            size={20}
+          />
           <input
             type="text"
             placeholder="Buscar productos..."
@@ -211,15 +235,16 @@ interface ProductCardProps {
 }
 
 function ProductCard({ product, onAddToCart }: ProductCardProps) {
-  const [selectedSize, setSelectedSize] = useState('');
+  const [selectedSize, setSelectedSize] = useState("");
   const [quantity, setQuantity] = useState(1);
 
-  const availableSizes = product.sizes.filter(s => s.stock > 0);
-  const maxStock = availableSizes.find(s => s.size === selectedSize)?.stock || 0;
+  const availableSizes = product.sizes.filter((s) => s.stock > 0);
+  const maxStock =
+    availableSizes.find((s) => s.size === selectedSize)?.stock || 0;
 
   const handleAdd = () => {
     if (!selectedSize) {
-      alert('Por favor seleccioná un talle');
+      alert("Por favor seleccioná un talle");
       return;
     }
     if (quantity > maxStock) {
@@ -228,7 +253,7 @@ function ProductCard({ product, onAddToCart }: ProductCardProps) {
     }
     onAddToCart(product, selectedSize, quantity);
     setQuantity(1);
-    setSelectedSize('');
+    setSelectedSize("");
   };
 
   return (
@@ -236,7 +261,9 @@ function ProductCard({ product, onAddToCart }: ProductCardProps) {
       <div className="space-y-3">
         <div>
           <h3 className="font-semibold text-gray-100 mb-1">{product.name}</h3>
-          <p className="text-sky-400 font-bold text-xl">${product.price.toLocaleString()}</p>
+          <p className="text-sky-400 font-bold text-xl">
+            ${product.price.toLocaleString()}
+          </p>
         </div>
 
         <div className="flex gap-2 flex-wrap">
@@ -246,8 +273,8 @@ function ProductCard({ product, onAddToCart }: ProductCardProps) {
               onClick={() => setSelectedSize(size.size)}
               className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                 selectedSize === size.size
-                  ? 'bg-sky-500 text-white'
-                  : 'bg-slate-700 text-gray-300 hover:bg-slate-600'
+                  ? "bg-sky-500 text-white"
+                  : "bg-slate-700 text-gray-300 hover:bg-slate-600"
               }`}
             >
               {size.size} ({size.stock})
@@ -264,7 +291,9 @@ function ProductCard({ product, onAddToCart }: ProductCardProps) {
             >
               <Minus size={16} />
             </button>
-            <span className="w-8 text-center font-semibold text-gray-100">{quantity}</span>
+            <span className="w-8 text-center font-semibold text-gray-100">
+              {quantity}
+            </span>
             <button
               onClick={() => setQuantity(Math.min(maxStock, quantity + 1))}
               className="p-2 hover:bg-slate-600 rounded transition-colors text-gray-300"
@@ -319,24 +348,45 @@ function CartContent({
       {/* Items */}
       <div className="space-y-3 max-h-96 overflow-y-auto">
         {cart.map((item, idx) => (
-          <div key={idx} className="flex justify-between items-center bg-slate-700 p-3 rounded-lg">
+          <div
+            key={idx}
+            className="flex justify-between items-center bg-slate-700 p-3 rounded-lg"
+          >
             <div className="flex-1">
-              <h4 className="font-semibold text-sm text-gray-100">{item.productName}</h4>
+              <h4 className="font-semibold text-sm text-gray-100">
+                {item.productName}
+              </h4>
               <p className="text-xs text-gray-400">Talle: {item.size}</p>
-              <p className="text-sky-400 font-bold mt-1">${item.totalPrice.toLocaleString()}</p>
+              <p className="text-sky-400 font-bold mt-1">
+                ${item.totalPrice.toLocaleString()}
+              </p>
             </div>
 
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-1 bg-slate-900 rounded-lg p-1">
                 <button
-                  onClick={() => onUpdateQuantity(item.productId, item.size, item.quantity - 1)}
+                  onClick={() =>
+                    onUpdateQuantity(
+                      item.productId,
+                      item.size,
+                      item.quantity - 1
+                    )
+                  }
                   className="p-1 hover:bg-slate-800 rounded text-gray-300"
                 >
                   <Minus size={14} />
                 </button>
-                <span className="w-6 text-center text-sm font-semibold text-gray-100">{item.quantity}</span>
+                <span className="w-6 text-center text-sm font-semibold text-gray-100">
+                  {item.quantity}
+                </span>
                 <button
-                  onClick={() => onUpdateQuantity(item.productId, item.size, item.quantity + 1)}
+                  onClick={() =>
+                    onUpdateQuantity(
+                      item.productId,
+                      item.size,
+                      item.quantity + 1
+                    )
+                  }
                   className="p-1 hover:bg-slate-800 rounded text-gray-300"
                 >
                   <Plus size={14} />
@@ -372,11 +422,13 @@ function CartContent({
       <div className="border-t border-slate-700 pt-4">
         <div className="flex justify-between items-center mb-4">
           <span className="text-lg font-semibold text-gray-300">Total:</span>
-          <span className="text-2xl font-bold text-sky-400">${total.toLocaleString()}</span>
+          <span className="text-2xl font-bold text-sky-400">
+            ${total.toLocaleString()}
+          </span>
         </div>
 
         <Button onClick={onCheckout} fullWidth size="lg" disabled={processing}>
-          {processing ? 'Procesando...' : 'Confirmar Venta'}
+          {processing ? "Procesando..." : "Confirmar Venta"}
         </Button>
       </div>
     </div>

@@ -14,21 +14,29 @@ export default function ProductsTab() {
   const [products, setProducts] = useState<Product[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<'Todas' | typeof PRODUCT_CATEGORIES[number]>('Todas');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     loadProducts();
   }, []);
 
   useEffect(() => {
-    const filtered = products.filter(product =>
-      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.category.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const term = searchTerm.toLowerCase();
+    const filtered = products.filter(product => {
+      const matchesText =
+        product.name.toLowerCase().includes(term) ||
+        product.category.toLowerCase().includes(term);
+      const matchesCategory =
+        selectedCategory === 'Todas' || product.category === selectedCategory;
+      return matchesText && matchesCategory;
+    });
     setFilteredProducts(filtered);
-  }, [searchTerm, products]);
+    setCurrentPage(1);
+  }, [searchTerm, products, selectedCategory]);
 
   const loadProducts = async () => {
     try {
@@ -69,6 +77,13 @@ export default function ProductsTab() {
     loadProducts();
     handleModalClose();
   };
+
+  // Pagination (8 per page)
+  const ITEMS_PER_PAGE = 8;
+  const totalPages = Math.max(1, Math.ceil(filteredProducts.length / ITEMS_PER_PAGE));
+  const safePage = Math.min(currentPage, totalPages);
+  const startIndex = (safePage - 1) * ITEMS_PER_PAGE;
+  const pageProducts = filteredProducts.slice(startIndex, startIndex + ITEMS_PER_PAGE);
 
   return (
     <div className="pb-20">
@@ -111,6 +126,16 @@ export default function ProductsTab() {
           </Button>
         </div>
 
+        {/* Category Filter */}
+        <div>
+          <Select
+            label="Filtrar por categoría"
+            value={selectedCategory}
+            onChange={(e) => setSelectedCategory(e.target.value as any)}
+            options={[{ value: 'Todas', label: 'Todas' }, ...PRODUCT_CATEGORIES.map(cat => ({ value: cat, label: cat }))]}
+          />
+        </div>
+
         {/* Products List */}
         {loading ? (
           <div className="text-center py-12 text-gray-400">
@@ -130,7 +155,7 @@ export default function ProductsTab() {
           </div>
         ) : (
           <div className="space-y-3">
-            {filteredProducts.map((product) => (
+            {pageProducts.map((product) => (
               <Card key={product.id} padding="md" className="relative">
                 <div className="flex justify-between items-start">
                   <div className="flex-1 pr-4">
@@ -138,19 +163,15 @@ export default function ProductsTab() {
                       {product.name}
                     </h3>
                     <p className="text-sky-400 font-bold text-lg mb-2">
-                      ${product.price.toLocaleString()}
+                      ${product.price.toLocaleString('es-AR')}
                     </p>
                     <div className="flex flex-wrap gap-2">
                       {product.sizes.map((size, idx) => (
                         <span
                           key={idx}
-                          className={`text-xs px-2 py-1 rounded-full ${
-                            size.stock > 0
-                              ? 'bg-green-900/40 text-green-400 border border-green-700'
-                              : 'bg-red-900/40 text-red-400 border border-red-700'
-                          }`}
+                          className="text-xs px-2 py-1 rounded-full bg-slate-700 text-gray-200 border border-slate-600"
                         >
-                          {size.size}: {size.stock}
+                          {size.size}
                         </span>
                       ))}
                     </div>
@@ -185,6 +206,7 @@ export default function ProductsTab() {
         onClose={handleModalClose}
         title={editingProduct ? 'Editar Producto' : 'Nuevo Producto'}
         size="lg"
+        closeOnOutsideClick={false}
       >
         <ProductForm
           product={editingProduct}
@@ -219,17 +241,21 @@ function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
     setSaving(true);
 
     try {
-      const totalStock = formData.sizes.reduce((sum, s) => sum + s.stock, 0);
+      // Si el modo es 'total', usamos el valor ingresado en el campo de Stock Total.
+      // Si el modo es 'detallado', calculamos el total sumando los talles.
+      const computedTotalStock = stockMode === 'total'
+        ? totalStock
+        : formData.sizes.reduce((sum, s) => sum + s.stock, 0);
 
       if (product) {
         await updateProduct(product.id, {
           ...formData,
-          totalStock,
+          totalStock: computedTotalStock,
         });
       } else {
         await addProduct({
           ...formData,
-          totalStock,
+          totalStock: computedTotalStock,
         });
       }
 
@@ -262,15 +288,11 @@ function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
 
   const handleTotalStockChange = (value: number) => {
     setTotalStock(value);
-    // Distribuir equitativamente entre todos los talles
-    const stockPerSize = Math.floor(value / formData.sizes.length);
-    const remainder = value % formData.sizes.length;
-
-    const newSizes = formData.sizes.map((size, idx) => ({
+    // En modo 'Stock Total', no distribuir: dejar todos los talles en 0
+    const newSizes = formData.sizes.map((size) => ({
       ...size,
-      stock: stockPerSize + (idx < remainder ? 1 : 0)
+      stock: 0,
     }));
-
     setFormData({ ...formData, sizes: newSizes });
   };
 

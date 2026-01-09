@@ -9,6 +9,7 @@ interface ModalProps {
   title: string;
   children: ReactNode;
   size?: 'sm' | 'md' | 'lg' | 'xl';
+  closeOnOutsideClick?: boolean;
 }
 
 export default function Modal({
@@ -17,6 +18,7 @@ export default function Modal({
   title,
   children,
   size = 'md',
+  closeOnOutsideClick = true,
 }: ModalProps) {
   useEffect(() => {
     if (isOpen) {
@@ -44,7 +46,7 @@ export default function Modal({
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={onClose}
+        onClick={closeOnOutsideClick ? onClose : undefined}
       />
 
       {/* Modal */}
