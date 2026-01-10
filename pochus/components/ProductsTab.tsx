@@ -194,14 +194,20 @@ export default function ProductsTab() {
                         ${product.price.toLocaleString('es-AR')}
                       </p>
                       <div className="flex flex-wrap gap-2">
-                        {product.sizes.map((size, idx) => (
-                          <span
-                            key={idx}
-                            className="text-xs px-2 py-1 rounded-full bg-slate-700 text-gray-200 border border-slate-600"
-                          >
-                            {size.size}
+                        {product.sizes.length > 0 ? (
+                          product.sizes.map((size, idx) => (
+                            <span
+                              key={idx}
+                              className="text-xs px-2 py-1 rounded-full bg-slate-700 text-gray-200 border border-slate-600"
+                            >
+                              {size.size}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-xs px-2 py-1 rounded-full bg-slate-700 text-gray-400 border border-slate-600">
+                            Sin talles
                           </span>
-                        ))}
+                        )}
                       </div>
                       <p className="text-xs text-gray-400 mt-2">
                         {product.category} • Stock total: {product.totalStock}
@@ -309,7 +315,7 @@ function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
     name: product?.name || '',
     price: product?.price || 0,
     category: product?.category || PRODUCT_CATEGORIES[0],
-    sizes: product?.sizes || [{ size: '', stock: 0 }],
+    sizes: product?.sizes && product.sizes.length > 0 ? product.sizes : [{ size: '', stock: 0 }],
   });
   const [saving, setSaving] = useState(false);
   const [stockMode, setStockMode] = useState<'total' | 'detallado'>('detallado');
@@ -327,20 +333,39 @@ function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
     setSaving(true);
 
     try {
-      // Si el modo es 'total', usamos el valor ingresado en el campo de Stock Total.
-      // Si el modo es 'detallado', calculamos el total sumando los talles.
-      const computedTotalStock = stockMode === 'total'
-        ? totalStock
-        : formData.sizes.reduce((sum, s) => sum + s.stock, 0);
+      let finalSizes = formData.sizes;
+      let computedTotalStock = 0;
+
+      if (stockMode === 'total') {
+        // En modo Stock Total
+        computedTotalStock = totalStock;
+
+        // Filtrar talles válidos (que tengan nombre)
+        const validSizes = formData.sizes.filter(s => s.size.trim() !== '');
+
+        // Si no hay talles válidos, crear un array vacío (producto sin talles)
+        if (validSizes.length === 0) {
+          finalSizes = [];
+        } else {
+          // Usar los talles válidos con stock en 0
+          finalSizes = validSizes.map(s => ({ size: s.size, stock: 0 }));
+        }
+      } else {
+        // En modo Por Talle, calcular el total sumando los talles
+        finalSizes = formData.sizes;
+        computedTotalStock = formData.sizes.reduce((sum, s) => sum + s.stock, 0);
+      }
 
       if (product) {
         await updateProduct(product.id, {
           ...formData,
+          sizes: finalSizes,
           totalStock: computedTotalStock,
         });
       } else {
         await addProduct({
           ...formData,
+          sizes: finalSizes,
           totalStock: computedTotalStock,
         });
       }
@@ -457,22 +482,33 @@ function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
               onFocus={(e) => e.target.select()}
               className="w-full px-3 py-2 rounded-lg border border-slate-600 bg-slate-900 text-gray-100 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-sky-500"
               min="0"
+              required
             />
+            <p className="text-xs text-gray-400 mt-2">
+              Los talles son opcionales en este modo. Si no agregás talles, el producto se guardará sin variantes.
+            </p>
           </div>
         )}
 
         {/* Talles */}
-        <div className="space-y-2">
-          {formData.sizes.map((size, idx) => (
-            <div key={idx} className="flex gap-2">
-              <input
-                type="text"
-                placeholder="Talle (ej: 3/6)"
-                value={size.size}
-                onChange={(e) => updateSize(idx, 'size', e.target.value)}
-                className="flex-1 px-3 py-2 rounded-lg border border-slate-600 bg-slate-900 text-gray-100 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-sky-500"
-                required
-              />
+        {formData.sizes.length === 0 && stockMode === 'total' ? (
+          <div className="text-center py-3 px-4 bg-slate-800 rounded-lg border border-slate-700">
+            <p className="text-sm text-gray-400 mb-2">
+              Este producto no tiene talles definidos
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {formData.sizes.map((size, idx) => (
+              <div key={idx} className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder={stockMode === 'total' ? 'Talle (opcional)' : 'Talle (ej: 3/6)'}
+                  value={size.size}
+                  onChange={(e) => updateSize(idx, 'size', e.target.value)}
+                  className="flex-1 px-3 py-2 rounded-lg border border-slate-600 bg-slate-900 text-gray-100 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                  required={stockMode === 'detallado'}
+                />
               {stockMode === 'detallado' && (
                 <input
                   type="number"
@@ -490,7 +526,7 @@ function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
                   {size.stock}
                 </div>
               )}
-              {formData.sizes.length > 1 && (
+              {(formData.sizes.length > 1 || stockMode === 'total') && (
                 <button
                   type="button"
                   onClick={() => removeSize(idx)}
@@ -501,7 +537,8 @@ function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
               )}
             </div>
           ))}
-        </div>
+          </div>
+        )}
         <Button
           type="button"
           onClick={addSize}

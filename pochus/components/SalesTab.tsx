@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ShoppingCart, Trash2, Plus, ChevronLeft, ChevronRight, Receipt } from 'lucide-react';
+import { ShoppingCart, Trash2, Plus, ChevronLeft, ChevronRight, Receipt, Search } from 'lucide-react';
 import Button from './ui/Button';
 import Card from './ui/Card';
 import AlertModal from './ui/AlertModal';
@@ -22,6 +22,8 @@ export default function SalesTab() {
   const [customPrice, setCustomPrice] = useState<number | ''>('');
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [productSearch, setProductSearch] = useState('');
+  const [showProductDropdown, setShowProductDropdown] = useState(false);
 
   // Modal state
   const [alertModal, setAlertModal] = useState<{ isOpen: boolean; message: string; type: 'success' | 'error' | 'info' }>({
@@ -37,6 +39,19 @@ export default function SalesTab() {
 
   useEffect(() => {
     loadData();
+  }, []);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.product-search-container')) {
+        setShowProductDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   const loadData = async () => {
@@ -59,10 +74,24 @@ export default function SalesTab() {
   const availableSizes = selectedProduct?.sizes.filter(s => s.stock > 0) || [];
   const finalPrice = customPrice !== '' ? customPrice : (selectedProduct?.price || 0);
 
+  // Filter products based on search
+  const filteredProductsForSearch = products.filter(p =>
+    p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
+    p.category.toLowerCase().includes(productSearch.toLowerCase())
+  ).slice(0, 8); // Limit to 8 results
+
+  const handleSelectProduct = (product: Product) => {
+    setSelectedProductId(product.id);
+    setProductSearch(product.name);
+    setShowProductDropdown(false);
+    setSelectedSize('');
+    setCustomPrice('');
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!selectedProductId || !selectedSize || quantity <= 0) {
+    if (!selectedProductId || quantity <= 0) {
       setAlertModal({
         isOpen: true,
         message: 'Por favor completá todos los campos',
@@ -74,14 +103,39 @@ export default function SalesTab() {
     const product = products.find(p => p.id === selectedProductId);
     if (!product) return;
 
-    const sizeData = product.sizes.find(s => s.size === selectedSize);
-    if (!sizeData || sizeData.stock < quantity) {
-      setAlertModal({
-        isOpen: true,
-        message: 'Stock insuficiente',
-        type: 'error'
-      });
-      return;
+    // Check if product has sizes
+    const hasSizes = availableSizes.length > 0;
+
+    // If product has sizes, validate size selection and stock
+    if (hasSizes) {
+      if (!selectedSize) {
+        setAlertModal({
+          isOpen: true,
+          message: 'Por favor seleccioná un talle',
+          type: 'error'
+        });
+        return;
+      }
+
+      const sizeData = product.sizes.find(s => s.size === selectedSize);
+      if (!sizeData || sizeData.stock < quantity) {
+        setAlertModal({
+          isOpen: true,
+          message: 'Stock insuficiente',
+          type: 'error'
+        });
+        return;
+      }
+    } else {
+      // For products without sizes, check total stock
+      if (product.totalStock < quantity) {
+        setAlertModal({
+          isOpen: true,
+          message: 'Stock insuficiente',
+          type: 'error'
+        });
+        return;
+      }
     }
 
     setSubmitting(true);
@@ -89,7 +143,7 @@ export default function SalesTab() {
       const saleItem = {
         productId: product.id,
         productName: product.name,
-        size: selectedSize,
+        size: selectedSize || 'Sin talle',
         quantity,
         unitPrice: finalPrice,
         totalPrice: finalPrice * quantity,
@@ -113,6 +167,7 @@ export default function SalesTab() {
       setQuantity(1);
       setCustomPrice('');
       setNotes('');
+      setProductSearch('');
 
       // Reload data
       await loadData();
@@ -191,67 +246,143 @@ export default function SalesTab() {
           </h2>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Product Selection */}
-            <div>
+            {/* Product Search */}
+            <div className="relative product-search-container">
               <label className="block text-sm font-medium text-gray-300 mb-2">
                 Producto
               </label>
-              <select
-                value={selectedProductId}
-                onChange={(e) => {
-                  setSelectedProductId(e.target.value);
-                  setSelectedSize('');
-                  setCustomPrice('');
-                }}
-                className="w-full px-3 py-2.5 rounded-lg border border-slate-600 bg-slate-900 text-gray-100 focus:outline-none focus:ring-2 focus:ring-sky-500"
-                required
-              >
-                <option value="">Seleccionar producto...</option>
-                {products.map(product => (
-                  <option key={product.id} value={product.id}>
-                    {product.name} - ${product.price.toLocaleString()}
-                  </option>
-                ))}
-              </select>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 pointer-events-none" size={20} />
+                <input
+                  type="text"
+                  value={productSearch}
+                  onChange={(e) => {
+                    setProductSearch(e.target.value);
+                    setShowProductDropdown(true);
+                    if (!e.target.value) {
+                      setSelectedProductId('');
+                      setSelectedSize('');
+                      setCustomPrice('');
+                    }
+                  }}
+                  onFocus={() => setShowProductDropdown(true)}
+                  placeholder="Buscar producto..."
+                  className="w-full pl-10 pr-3 py-2.5 rounded-lg border border-slate-600 bg-slate-900 text-gray-100 placeholder:text-gray-600 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                  required
+                />
+
+                {/* Dropdown Results */}
+                {showProductDropdown && productSearch && (
+                  <div className="absolute z-10 w-full mt-1 bg-slate-800 border border-slate-600 rounded-lg shadow-xl max-h-60 overflow-y-auto">
+                    {filteredProductsForSearch.length > 0 ? (
+                      filteredProductsForSearch.map((product) => (
+                        <button
+                          key={product.id}
+                          type="button"
+                          onClick={() => handleSelectProduct(product)}
+                          className="w-full px-3 py-2.5 text-left hover:bg-slate-700 transition-colors border-b border-slate-700 last:border-b-0"
+                        >
+                          <div className="flex justify-between items-center">
+                            <div>
+                              <p className="text-gray-100 font-medium">{product.name}</p>
+                              <p className="text-xs text-gray-400">{product.category}</p>
+                            </div>
+                            <p className="text-sky-400 font-semibold">${product.price.toLocaleString()}</p>
+                          </div>
+                        </button>
+                      ))
+                    ) : (
+                      <div className="px-3 py-4 text-center text-gray-400 text-sm">
+                        No se encontraron productos
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Selected Product Display */}
+              {selectedProduct && !showProductDropdown && (
+                <div className="mt-2 p-3 bg-slate-900 rounded-lg border border-slate-700">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <p className="text-gray-100 font-medium">{selectedProduct.name}</p>
+                      <p className="text-xs text-gray-400">{selectedProduct.category}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedProductId('');
+                        setProductSearch('');
+                        setSelectedSize('');
+                        setCustomPrice('');
+                      }}
+                      className="text-red-400 hover:text-red-300 text-sm"
+                    >
+                      Cambiar
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Size and Quantity Row */}
             {selectedProduct && (
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Talle
-                  </label>
-                  <select
-                    value={selectedSize}
-                    onChange={(e) => setSelectedSize(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-lg border border-slate-600 bg-slate-900 text-gray-100 focus:outline-none focus:ring-2 focus:ring-sky-500"
-                    required
-                  >
-                    <option value="">Seleccionar...</option>
-                    {availableSizes.map(size => (
-                      <option key={size.size} value={size.size}>
-                        {size.size} (Stock: {size.stock})
-                      </option>
-                    ))}
-                  </select>
-                </div>
+              <>
+                {/* Show size selector only if product has sizes */}
+                {availableSizes.length > 0 ? (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        Talle
+                      </label>
+                      <select
+                        value={selectedSize}
+                        onChange={(e) => setSelectedSize(e.target.value)}
+                        className="w-full px-3 py-2.5 rounded-lg border border-slate-600 bg-slate-900 text-gray-100 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                        required
+                      >
+                        <option value="">Seleccionar...</option>
+                        {availableSizes.map(size => (
+                          <option key={size.size} value={size.size}>
+                            {size.size} (Stock: {size.stock})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Cantidad
-                  </label>
-                  <input
-                    type="number"
-                    value={quantity}
-                    onChange={(e) => setQuantity(Number(e.target.value))}
-                    onFocus={(e) => e.target.select()}
-                    min="1"
-                    className="w-full px-3 py-2.5 rounded-lg border border-slate-600 bg-slate-900 text-gray-100 focus:outline-none focus:ring-2 focus:ring-sky-500"
-                    required
-                  />
-                </div>
-              </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-2">
+                        Cantidad
+                      </label>
+                      <input
+                        type="number"
+                        value={quantity}
+                        onChange={(e) => setQuantity(Number(e.target.value))}
+                        onFocus={(e) => e.target.select()}
+                        min="1"
+                        className="w-full px-3 py-2.5 rounded-lg border border-slate-600 bg-slate-900 text-gray-100 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                        required
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Cantidad (Stock disponible: {selectedProduct.totalStock})
+                    </label>
+                    <input
+                      type="number"
+                      value={quantity}
+                      onChange={(e) => setQuantity(Number(e.target.value))}
+                      onFocus={(e) => e.target.select()}
+                      min="1"
+                      max={selectedProduct.totalStock}
+                      className="w-full px-3 py-2.5 rounded-lg border border-slate-600 bg-slate-900 text-gray-100 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                      required
+                    />
+                  </div>
+                )}
+              </>
             )}
 
             {/* Custom Price */}
@@ -304,7 +435,7 @@ export default function SalesTab() {
               type="submit"
               fullWidth
               size="lg"
-              disabled={!selectedProductId || !selectedSize || submitting}
+              disabled={!selectedProductId || submitting}
             >
               {submitting ? 'Registrando...' : 'Registrar Venta'}
             </Button>
@@ -358,7 +489,7 @@ export default function SalesTab() {
                                 {item.productName}
                               </span>
                               <span className="text-gray-400 text-sm">
-                                • Talle {item.size} • x{item.quantity}
+                                {item.size !== 'Sin talle' && `• Talle ${item.size} `}• x{item.quantity}
                               </span>
                               <span className="text-sky-400 font-semibold ml-auto">
                                 ${item.totalPrice.toLocaleString()}

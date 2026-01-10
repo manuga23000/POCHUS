@@ -79,17 +79,25 @@ export async function addSale(sale: Omit<Sale, 'id' | 'createdAt'>) {
   for (const item of sale.items) {
     const product = await getProductById(item.productId);
     if (product) {
-      const updatedSizes = product.sizes.map(s =>
-        s.size === item.size
-          ? { ...s, stock: s.stock - item.quantity }
-          : s
-      );
-      const newTotalStock = updatedSizes.reduce((sum, s) => sum + s.stock, 0);
+      // Si el producto no tiene talle (item.size === 'Sin talle'), solo actualizar totalStock
+      if (item.size === 'Sin talle') {
+        await updateProduct(item.productId, {
+          totalStock: product.totalStock - item.quantity
+        });
+      } else {
+        // Si tiene talle, actualizar el talle específico y el total
+        const updatedSizes = product.sizes.map(s =>
+          s.size === item.size
+            ? { ...s, stock: s.stock - item.quantity }
+            : s
+        );
+        const newTotalStock = updatedSizes.reduce((sum, s) => sum + s.stock, 0);
 
-      await updateProduct(item.productId, {
-        sizes: updatedSizes,
-        totalStock: newTotalStock
-      });
+        await updateProduct(item.productId, {
+          sizes: updatedSizes,
+          totalStock: newTotalStock
+        });
+      }
     }
   }
 
