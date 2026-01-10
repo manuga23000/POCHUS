@@ -10,7 +10,7 @@ import ReportsTab from "@/components/ReportsTab";
 export default function Home() {
   const [currentTab, setCurrentTab] = useState<
     "productos" | "ventas" | "reportes"
-  >("ventas");
+  >("productos");
 
   return (
     <div className="min-h-screen bg-slate-900">
