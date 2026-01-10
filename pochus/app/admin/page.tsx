@@ -1,5 +1,5 @@
 'use client';
-
+//
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import AdminPanel from '@/components/AdminPanel';

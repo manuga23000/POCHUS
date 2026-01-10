@@ -119,6 +119,11 @@ export async function getAllSales(): Promise<Sale[]> {
   return getSalesByFair();
 }
 
+export async function deleteSale(saleId: string) {
+  const saleRef = doc(db, 'sales', saleId);
+  await deleteDoc(saleRef);
+}
+
 // ============ FERIAS ============
 
 export async function addFair(fair: Omit<Fair, 'id' | 'createdAt'>) {

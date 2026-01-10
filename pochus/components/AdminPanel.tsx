@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { Database, Upload, Loader2 } from 'lucide-react';
 import Button from './ui/Button';
 import Card from './ui/Card';
+import AlertModal from './ui/AlertModal';
+import ConfirmModal from './ui/ConfirmModal';
 import { initialProducts } from '@/lib/initial-products';
 import { addProduct } from '@/lib/db';
 
@@ -12,48 +14,66 @@ export default function AdminPanel() {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
 
-  const handleLoadProducts = async () => {
-    if (!confirm('¿Estás segura de que querés cargar los productos iniciales? Esto agregará todos los productos de la lista.')) {
-      return;
-    }
+  // Modal state
+  const [alertModal, setAlertModal] = useState<{ isOpen: boolean; message: string; type: 'success' | 'error' | 'info' }>({
+    isOpen: false,
+    message: '',
+    type: 'info'
+  });
+  const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; message: string; onConfirm: () => void }>({
+    isOpen: false,
+    message: '',
+    onConfirm: () => {}
+  });
 
-    setLoading(true);
-    setError('');
-    setSuccess(false);
+  const handleLoadProducts = () => {
+    setConfirmModal({
+      isOpen: true,
+      message: '¿Estás segura de que querés cargar los productos iniciales? Esto agregará todos los productos de la lista.',
+      onConfirm: async () => {
+        setLoading(true);
+        setError('');
+        setSuccess(false);
 
-    try {
-      let successCount = 0;
-      let errorCount = 0;
-
-      for (const product of initialProducts) {
         try {
-          const totalStock = product.sizes.reduce((sum, s) => sum + s.stock, 0);
-          await addProduct({
-            name: product.name,
-            price: product.price,
-            category: product.category,
-            sizes: product.sizes,
-            totalStock,
-          });
-          successCount++;
+          let successCount = 0;
+          let errorCount = 0;
+
+          for (const product of initialProducts) {
+            try {
+              const totalStock = product.sizes.reduce((sum, s) => sum + s.stock, 0);
+              await addProduct({
+                name: product.name,
+                price: product.price,
+                category: product.category,
+                sizes: product.sizes,
+                totalStock,
+              });
+              successCount++;
+            } catch (err) {
+              console.error(`Error al cargar ${product.name}:`, err);
+              errorCount++;
+            }
+          }
+
+          if (errorCount === 0) {
+            setSuccess(true);
+            setAlertModal({
+              isOpen: true,
+              message: `¡Éxito! Se cargaron ${successCount} productos correctamente.`,
+              type: 'success'
+            });
+          } else {
+            setError(`Se cargaron ${successCount} productos, pero ${errorCount} fallaron.`);
+          }
         } catch (err) {
-          console.error(`Error al cargar ${product.name}:`, err);
-          errorCount++;
+          console.error('Error general:', err);
+          setError('Error al cargar los productos. Verificá tu conexión a Firebase.');
+        } finally {
+          setLoading(false);
         }
       }
-
-      if (errorCount === 0) {
-        setSuccess(true);
-        alert(`¡Éxito! Se cargaron ${successCount} productos correctamente.`);
-      } else {
-        setError(`Se cargaron ${successCount} productos, pero ${errorCount} fallaron.`);
-      }
-    } catch (err) {
-      console.error('Error general:', err);
-      setError('Error al cargar los productos. Verificá tu conexión a Firebase.');
-    } finally {
-      setLoading(false);
-    }
+    });
   };
 
   return (
@@ -117,6 +137,21 @@ export default function AdminPanel() {
           Solo hacé esto una vez. Si los productos ya están cargados, se duplicarán.
         </p>
       </div>
+
+      {/* Modals */}
+      <AlertModal
+        isOpen={alertModal.isOpen}
+        onClose={() => setAlertModal({ ...alertModal, isOpen: false })}
+        message={alertModal.message}
+        type={alertModal.type}
+      />
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onConfirm={confirmModal.onConfirm}
+        onCancel={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+        message={confirmModal.message}
+        type="warning"
+      />
     </Card>
   );
 }

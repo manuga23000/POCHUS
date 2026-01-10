@@ -1,12 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, Search, Edit2, Trash2, Package } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Package, ChevronLeft, ChevronRight } from 'lucide-react';
 import Button from './ui/Button';
 import Card from './ui/Card';
 import Input from './ui/Input';
 import Modal from './ui/Modal';
 import Select from './ui/Select';
+import AlertModal from './ui/AlertModal';
+import ConfirmModal from './ui/ConfirmModal';
 import { Product, PRODUCT_CATEGORIES } from '@/lib/types';
 import { getAllProducts, deleteProduct, addProduct, updateProduct } from '@/lib/db';
 
@@ -19,6 +21,18 @@ export default function ProductsTab() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
+
+  // Modal state
+  const [alertModal, setAlertModal] = useState<{ isOpen: boolean; message: string; type: 'success' | 'error' | 'info' }>({
+    isOpen: false,
+    message: '',
+    type: 'info'
+  });
+  const [confirmModal, setConfirmModal] = useState<{ isOpen: boolean; message: string; onConfirm: () => void }>({
+    isOpen: false,
+    message: '',
+    onConfirm: () => {}
+  });
 
   useEffect(() => {
     loadProducts();
@@ -51,16 +65,29 @@ export default function ProductsTab() {
     }
   };
 
-  const handleDelete = async (productId: string) => {
-    if (confirm('¿Estás segura de que querés eliminar este producto?')) {
-      try {
-        await deleteProduct(productId);
-        await loadProducts();
-      } catch (error) {
-        console.error('Error eliminando producto:', error);
-        alert('Error al eliminar el producto');
+  const handleDelete = (productId: string) => {
+    setConfirmModal({
+      isOpen: true,
+      message: '¿Estás segura de que querés eliminar este producto?',
+      onConfirm: async () => {
+        try {
+          await deleteProduct(productId);
+          await loadProducts();
+          setAlertModal({
+            isOpen: true,
+            message: 'Producto eliminado exitosamente',
+            type: 'success'
+          });
+        } catch (error) {
+          console.error('Error eliminando producto:', error);
+          setAlertModal({
+            isOpen: true,
+            message: 'Error al eliminar el producto',
+            type: 'error'
+          });
+        }
       }
-    }
+    });
   };
 
   const handleEdit = (product: Product) => {
@@ -154,49 +181,86 @@ export default function ProductsTab() {
             )}
           </div>
         ) : (
-          <div className="space-y-3">
-            {pageProducts.map((product) => (
-              <Card key={product.id} padding="md" className="relative">
-                <div className="flex justify-between items-start">
-                  <div className="flex-1 pr-4">
-                    <h3 className="font-semibold text-gray-100 mb-1">
-                      {product.name}
-                    </h3>
-                    <p className="text-sky-400 font-bold text-lg mb-2">
-                      ${product.price.toLocaleString('es-AR')}
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {product.sizes.map((size, idx) => (
-                        <span
-                          key={idx}
-                          className="text-xs px-2 py-1 rounded-full bg-slate-700 text-gray-200 border border-slate-600"
-                        >
-                          {size.size}
-                        </span>
-                      ))}
+          <>
+            <div className="space-y-3">
+              {pageProducts.map((product) => (
+                <Card key={product.id} padding="md" className="relative">
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1 pr-4">
+                      <h3 className="font-semibold text-gray-100 mb-1">
+                        {product.name}
+                      </h3>
+                      <p className="text-sky-400 font-bold text-lg mb-2">
+                        ${product.price.toLocaleString('es-AR')}
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {product.sizes.map((size, idx) => (
+                          <span
+                            key={idx}
+                            className="text-xs px-2 py-1 rounded-full bg-slate-700 text-gray-200 border border-slate-600"
+                          >
+                            {size.size}
+                          </span>
+                        ))}
+                      </div>
+                      <p className="text-xs text-gray-400 mt-2">
+                        {product.category} • Stock total: {product.totalStock}
+                      </p>
                     </div>
-                    <p className="text-xs text-gray-400 mt-2">
-                      {product.category} • Stock total: {product.totalStock}
-                    </p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleEdit(product)}
+                        className="p-2 text-sky-400 hover:bg-slate-700 rounded-lg transition-colors"
+                      >
+                        <Edit2 size={18} />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(product.id)}
+                        className="p-2 text-red-400 hover:bg-slate-700 rounded-lg transition-colors"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex gap-2">
+                </Card>
+              ))}
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-2 mt-6">
+                <button
+                  onClick={() => setCurrentPage(safePage - 1)}
+                  disabled={safePage === 1}
+                  className="w-10 h-10 rounded-lg bg-slate-800 text-gray-300 border border-slate-600 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+                >
+                  <ChevronLeft size={20} />
+                </button>
+                <div className="flex items-center gap-2">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
                     <button
-                      onClick={() => handleEdit(product)}
-                      className="p-2 text-sky-400 hover:bg-slate-700 rounded-lg transition-colors"
+                      key={page}
+                      onClick={() => setCurrentPage(page)}
+                      className={`w-10 h-10 rounded-lg transition-colors ${
+                        page === safePage
+                          ? 'bg-sky-500 text-white font-semibold'
+                          : 'bg-slate-800 text-gray-300 border border-slate-600 hover:bg-slate-700'
+                      }`}
                     >
-                      <Edit2 size={18} />
+                      {page}
                     </button>
-                    <button
-                      onClick={() => handleDelete(product.id)}
-                      className="p-2 text-red-400 hover:bg-slate-700 rounded-lg transition-colors"
-                    >
-                      <Trash2 size={18} />
-                    </button>
-                  </div>
+                  ))}
                 </div>
-              </Card>
-            ))}
-          </div>
+                <button
+                  onClick={() => setCurrentPage(safePage + 1)}
+                  disabled={safePage === totalPages}
+                  className="w-10 h-10 rounded-lg bg-slate-800 text-gray-300 border border-slate-600 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+                >
+                  <ChevronRight size={20} />
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
 
@@ -214,6 +278,21 @@ export default function ProductsTab() {
           onCancel={handleModalClose}
         />
       </Modal>
+
+      {/* Alert & Confirm Modals */}
+      <AlertModal
+        isOpen={alertModal.isOpen}
+        onClose={() => setAlertModal({ ...alertModal, isOpen: false })}
+        message={alertModal.message}
+        type={alertModal.type}
+      />
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onConfirm={confirmModal.onConfirm}
+        onCancel={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+        message={confirmModal.message}
+        type="danger"
+      />
     </div>
   );
 }
@@ -235,6 +314,13 @@ function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
   const [saving, setSaving] = useState(false);
   const [stockMode, setStockMode] = useState<'total' | 'detallado'>('detallado');
   const [totalStock, setTotalStock] = useState(0);
+
+  // Modal state
+  const [alertModal, setAlertModal] = useState<{ isOpen: boolean; message: string; type: 'success' | 'error' | 'info' }>({
+    isOpen: false,
+    message: '',
+    type: 'info'
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -262,7 +348,11 @@ function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
       onSave();
     } catch (error) {
       console.error('Error guardando producto:', error);
-      alert('Error al guardar el producto');
+      setAlertModal({
+        isOpen: true,
+        message: 'Error al guardar el producto',
+        type: 'error'
+      });
     } finally {
       setSaving(false);
     }
@@ -297,6 +387,7 @@ function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
   };
 
   return (
+    <>
     <form onSubmit={handleSubmit} className="space-y-4">
       <Input
         label="Nombre del producto"
@@ -437,5 +528,14 @@ function ProductForm({ product, onSave, onCancel }: ProductFormProps) {
         </Button>
       </div>
     </form>
+
+    {/* Modal */}
+    <AlertModal
+      isOpen={alertModal.isOpen}
+      onClose={() => setAlertModal({ ...alertModal, isOpen: false })}
+      message={alertModal.message}
+      type={alertModal.type}
+    />
+  </>
   );
 }
