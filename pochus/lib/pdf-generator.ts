@@ -21,19 +21,39 @@ export function generatePDF(sales: Sale[], reportData: ReportData) {
   let yPos = margin;
 
   // Header - Logo y título
-  doc.setFillColor(135, 206, 235); // Celeste
-  doc.rect(0, 0, pageWidth, 40, 'F');
+  doc.setFillColor(29, 41, 61); // Azul oscuro #1D293D
+  doc.rect(0, 0, pageWidth, 50, 'F');
+
+  // Agregar logo si está disponible
+  try {
+    const logoImg = document.querySelector('img[src="/logo.png"]') as HTMLImageElement;
+    if (logoImg && logoImg.complete) {
+      const canvas = document.createElement('canvas');
+      canvas.width = logoImg.naturalWidth;
+      canvas.height = logoImg.naturalHeight;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(logoImg, 0, 0);
+        const imgData = canvas.toDataURL('image/png');
+        // Logo centrado
+        const logoSize = 15;
+        doc.addImage(imgData, 'PNG', (pageWidth - logoSize) / 2, 8, logoSize, logoSize);
+      }
+    }
+  } catch (error) {
+    console.log('Logo no disponible para PDF');
+  }
 
   doc.setTextColor(255, 255, 255);
-  doc.setFontSize(24);
+  doc.setFontSize(22);
   doc.setFont('helvetica', 'bold');
-  doc.text('POCHUS', pageWidth / 2, 20, { align: 'center' });
+  doc.text('POCHUS', pageWidth / 2, 32, { align: 'center' });
 
-  doc.setFontSize(12);
+  doc.setFontSize(11);
   doc.setFont('helvetica', 'normal');
-  doc.text('Reporte de Ventas', pageWidth / 2, 30, { align: 'center' });
+  doc.text('Reporte de Ventas', pageWidth / 2, 40, { align: 'center' });
 
-  yPos = 50;
+  yPos = 60;
 
   // Fecha del reporte
   doc.setTextColor(0, 0, 0);
@@ -187,7 +207,8 @@ export function generatePDF(sales: Sale[], reportData: ReportData) {
         yPos = margin;
       }
 
-      const itemText = `  • ${item.quantity}x ${item.productName} (${item.size})`;
+      const sizeText = item.size !== 'Sin talle' ? ` (${item.size})` : '';
+      const itemText = `  • ${item.quantity}x ${item.productName}${sizeText}`;
       const itemPrice = `$${item.totalPrice.toLocaleString()}`;
 
       doc.text(itemText, margin + 5, yPos + 5);
